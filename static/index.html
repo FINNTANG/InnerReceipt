@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>INNER CORP</title>
+  <style>
+    /* ── App variables ─────────────────────────────────────── */
+    :root {
+      --bg:      #080808;
+      --surface: #111111;
+      --border:  #242424;
+      --red:     #C8000A;
+      --red-glow:rgba(200,0,10,0.15);
+      --text:    #E5E5E5;
+      --muted:   #5a5a5a;
+      --dim:     #2a2a2a;
+
+      /* receipt vars (matches preview.html) */
+      --ink:   #000;
+      --paper: #fff;
+      --line:  2px;
+      --rw:    320px;
+    }
+
+    /* ── Reset ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* ── Dot-grid bg ────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: radial-gradient(circle, #1c1c1c 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+    }
+
+    /* ── Screens ────────────────────────────────────────────── */
+    #app {
+      position: relative; z-index: 1;
+      height: 100vh;
+    }
+    .screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 32px 24px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ── IDLE ───────────────────────────────────────────────── */
+    .logo-wrap {
+      display: flex; align-items: center; gap: 18px;
+      margin-bottom: 10px;
+    }
+    .brand-name {
+      font-size: 44px; font-weight: 800;
+      letter-spacing: 0.22em; line-height: 1;
+    }
+    .brand-corp {
+      font-size: 10px; font-weight: 400;
+      letter-spacing: 0.55em; color: var(--muted);
+      margin-top: 5px;
+    }
+    .tagline {
+      font-size: 10px; font-weight: 500;
+      letter-spacing: 0.38em; color: var(--muted);
+      text-align: center; margin-bottom: 6px;
+    }
+    .tagline-sub {
+      font-size: 12px; color: #383838;
+      letter-spacing: 0.08em; text-align: center;
+      margin-bottom: 48px; font-style: italic;
+    }
+    .btn-primary {
+      background: var(--red); color: #fff;
+      border: none; border-radius: 2px;
+      padding: 16px 52px;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.32em; cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+      text-transform: uppercase;
+    }
+    .btn-primary:hover  { background: #e0000b; box-shadow: 0 0 36px var(--red-glow); }
+    .btn-primary:active { transform: scale(0.98); }
+    .footer-note {
+      position: fixed; bottom: 20px;
+      font-size: 9px; letter-spacing: 0.25em; color: #282828;
+    }
+
+    /* ── RECORDING ──────────────────────────────────────────── */
+    .rec-header {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      width: 100%; max-width: 360px; margin-bottom: 20px;
+    }
+    .rec-indicator {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.35em; color: var(--red);
+    }
+    .rec-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--red);
+      animation: blink 1.2s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; } 50% { opacity: 0.25; }
+    }
+    .rec-timer {
+      font-family: 'Courier New', monospace;
+      font-size: 20px; font-weight: 700; letter-spacing: 0.08em;
+    }
+    .rec-label {
+      font-size: 9px; letter-spacing: 0.4em;
+      color: var(--muted); margin-bottom: 20px;
+    }
+    #waveform {
+      width: 100%; max-width: 360px; height: 72px;
+      border: 1px solid var(--border); border-radius: 2px;
+      background: var(--surface); margin-bottom: 28px;
+    }
+    .rec-hint {
+      font-size: 11px; color: #343434;
+      letter-spacing: 0.07em; text-align: center;
+      margin-bottom: 32px; font-style: italic;
+    }
+    .btn-stop {
+      background: transparent; color: var(--red);
+      border: 1px solid var(--red); border-radius: 2px;
+      padding: 14px 42px;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.3em; cursor: pointer;
+      transition: background 0.2s; text-transform: uppercase;
+    }
+    .btn-stop:hover { background: var(--red-glow); }
+
+    /* ── PROCESSING ─────────────────────────────────────────── */
+    .proc-icon {
+      margin-bottom: 36px;
+      animation: spin 5s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .proc-status {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.24em; text-align: center;
+      margin-bottom: 20px; min-height: 18px;
+    }
+    .progress-track {
+      width: 100%; max-width: 260px;
+      height: 2px; background: var(--border);
+      overflow: hidden; margin-bottom: 12px;
+    }
+    .progress-fill {
+      height: 100%; width: 0%;
+      background: var(--red);
+      transition: width 0.7s ease;
+    }
+    .proc-note {
+      font-size: 9px; color: var(--muted); letter-spacing: 0.2em;
+    }
+
+    /* ── COMPLETE ───────────────────────────────────────────── */
+    #s-complete {
+      justify-content: flex-start;
+      padding-top: 16px;
+      overflow-y: auto;
+    }
+    #s-complete::-webkit-scrollbar { width: 2px; }
+    #s-complete::-webkit-scrollbar-thumb { background: var(--border); }
+    .complete-badge {
+      font-size: 9px; font-weight: 700;
+      letter-spacing: 0.4em; color: var(--red);
+      border: 1px solid var(--red);
+      padding: 5px 14px; border-radius: 2px;
+      margin-bottom: 18px; flex-shrink: 0;
+    }
+
+    /* ── Receipt paper — matches preview.html exactly ───────── */
+    .receipt {
+      width: var(--rw);
+      background: var(--paper);
+      border: var(--line) solid var(--ink);
+      padding: 16px;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      flex-shrink: 0;
+    }
+    .r-title {
+      font-size: 28px; font-weight: 800; letter-spacing: .02em;
+    }
+    .r-meta {
+      margin-top: 6px; font-size: 12px;
+    }
+    .r-divider {
+      border-top: var(--line) solid var(--ink);
+      margin: 14px 0;
+    }
+    .r-label {
+      display: inline-block;
+      background: #000; color: #fff;
+      font-size: 12px; font-weight: 800;
+      padding: 6px 10px; letter-spacing: .04em;
+    }
+    /* Primary block */
+    .r-primary { margin-top: 12px; }
+    .r-kaomoji {
+      font-size: 16px; letter-spacing: 0.05em;
+      margin-top: 8px; margin-bottom: 4px;
+      color: #222;
+    }
+    .r-emotion {
+      display: flex; align-items: flex-end;
+      justify-content: space-between; gap: 12px;
+      margin-top: 4px;
+    }
+    .r-ename { font-size: 40px; font-weight: 900; line-height: .95; }
+    .r-epct  { font-size: 40px; font-weight: 900; line-height: .95; }
+    .r-bar {
+      margin-top: 12px; height: 20px;
+      border: var(--line) solid var(--ink); position: relative;
+    }
+    .r-bar > span {
+      position: absolute; left: 2px; top: 2px; bottom: 2px;
+      background: #000;
+    }
+    /* Secondary rows */
+    .r-rows { margin-top: 14px; }
+    .r-row {
+      display: grid;
+      grid-template-columns: 92px 1fr 42px;
+      gap: 10px; align-items: center;
+      margin: 10px 0; font-size: 14px;
+    }
+    .r-row .r-name { font-weight: 700; }
+    .r-mini {
+      height: 16px; border: var(--line) solid var(--ink); position: relative;
+    }
+    .r-mini > span {
+      position: absolute; left: 2px; top: 2px; bottom: 2px; background: #000;
+    }
+    .r-value { text-align: right; font-weight: 700; }
+    /* Bullets */
+    .r-bullets {
+      margin: 12px 0 0; padding-left: 18px; font-size: 14px;
+    }
+    .r-bullets li { margin: 6px 0; }
+    /* Verdict */
+    .r-verdict { margin-top: 12px; font-size: 18px; font-weight: 800; }
+    .r-sub     { margin-top: 6px; font-size: 14px; }
+    /* Actions */
+    .r-actions { margin-top: 12px; display: grid; gap: 10px; }
+    .r-action  {
+      border: var(--line) solid var(--ink);
+      padding: 10px 12px;
+      font-size: 15px; font-weight: 800;
+    }
+    /* Status */
+    .r-status {
+      margin-top: 14px; background: #000; color: #fff;
+      text-align: center; padding: 12px;
+      font-size: 16px; font-weight: 800; letter-spacing: .05em;
+    }
+    .r-foot { margin-top: 14px; font-size: 14px; }
+
+    /* print status + new button */
+    .print-status {
+      font-size: 9px; letter-spacing: 0.25em;
+      margin-top: 18px; text-align: center; flex-shrink: 0;
+    }
+    .ok  { color: #27ae60; }
+    .err { color: var(--red); }
+    .btn-new {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); border-radius: 2px;
+      padding: 11px 34px;
+      font-size: 10px; font-weight: 500;
+      letter-spacing: 0.3em; cursor: pointer;
+      transition: all 0.2s; text-transform: uppercase;
+      margin-top: 14px; margin-bottom: 32px; flex-shrink: 0;
+    }
+    .btn-new:hover { border-color: var(--muted); color: var(--text); }
+
+    /* ── Toast ──────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 36px;
+      left: 50%; transform: translateX(-50%);
+      background: #150000; border: 1px solid var(--red);
+      color: var(--red); font-size: 11px; letter-spacing: 0.1em;
+      padding: 10px 20px; border-radius: 2px;
+      opacity: 0; transition: opacity 0.3s;
+      z-index: 99; pointer-events: none;
+      max-width: 320px; text-align: center;
+    }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── IDLE ────────────────────────────────────────────── -->
+  <section id="s-idle" class="screen active">
+    <div class="logo-wrap">
+      <svg width="60" height="60" viewBox="0 0 64 64" fill="none">
+        <circle cx="32" cy="32" r="30" stroke="#C8000A" stroke-width="1.5"/>
+        <circle cx="32" cy="32" r="9"  stroke="#C8000A" stroke-width="1.5"/>
+        <line x1="32" y1="2"  x2="32" y2="21" stroke="#C8000A" stroke-width="1.5"/>
+        <line x1="32" y1="43" x2="32" y2="62" stroke="#C8000A" stroke-width="1.5"/>
+        <line x1="2"  y1="32" x2="21" y2="32" stroke="#C8000A" stroke-width="1.5"/>
+        <line x1="43" y1="32" x2="62" y2="32" stroke="#C8000A" stroke-width="1.5"/>
+        <circle cx="32" cy="32" r="2.5" fill="#C8000A"/>
+      </svg>
+      <div>
+        <div class="brand-name">INNER</div>
+        <div class="brand-corp">CORP · EST. 2026</div>
+      </div>
+    </div>
+    <p class="tagline">EMOTIONAL INTELLIGENCE DIVISION</p>
+    <p class="tagline-sub">Precision diagnosis. Zero empathy.</p>
+    <button class="btn-primary" id="btn-start">BEGIN DIAGNOSIS</button>
+    <p class="footer-note">SESSION PROTOCOL v2.4 · ALL DATA RETAINED · CLASSIFIED</p>
+  </section>
+
+  <!-- ── RECORDING ──────────────────────────────────────── -->
+  <section id="s-recording" class="screen">
+    <div class="rec-header">
+      <div class="rec-indicator">
+        <span class="rec-dot"></span><span>RECORDING</span>
+      </div>
+      <div class="rec-timer" id="rec-timer">00:00</div>
+    </div>
+    <p class="rec-label">SUBJECT VOCALIZATION CAPTURE IN PROGRESS</p>
+    <canvas id="waveform" width="720" height="144"></canvas>
+    <p class="rec-hint">Speak freely. Everything is being analyzed.</p>
+    <button class="btn-stop" id="btn-stop">SUBMIT FOR DIAGNOSIS</button>
+  </section>
+
+  <!-- ── PROCESSING ─────────────────────────────────────── -->
+  <section id="s-processing" class="screen">
+    <div class="proc-icon">
+      <svg width="52" height="52" viewBox="0 0 64 64" fill="none">
+        <circle cx="32" cy="32" r="30" stroke="#C8000A" stroke-width="1.5" stroke-dasharray="8 5"/>
+        <circle cx="32" cy="32" r="9"  stroke="#C8000A" stroke-width="1.5"/>
+        <circle cx="32" cy="32" r="2.5" fill="#C8000A"/>
+      </svg>
+    </div>
+    <div class="proc-status" id="proc-status">INITIATING DIAGNOSTIC PROTOCOL</div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+    <p class="proc-note">DO NOT CLOSE THIS WINDOW</p>
+  </section>
+
+  <!-- ── COMPLETE ───────────────────────────────────────── -->
+  <section id="s-complete" class="screen">
+    <div class="complete-badge">▸ DIAGNOSIS COMPLETE</div>
+    <div class="receipt" id="receipt-display"></div>
+    <div class="print-status" id="print-status"></div>
+    <button class="btn-new" id="btn-new">◂ NEW DIAGNOSIS</button>
+  </section>
+
+</div>
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+let mediaRecorder = null, audioChunks = [], stream = null;
+let audioCtx = null, analyser = null, animFrame = null;
+let timerInterval = null, recSeconds = 0;
+let procInterval = null, apiDone = false, apiResult = null;
+
+const S = {
+  idle:       document.getElementById('s-idle'),
+  recording:  document.getElementById('s-recording'),
+  processing: document.getElementById('s-processing'),
+  complete:   document.getElementById('s-complete'),
+};
+function show(name) {
+  Object.values(S).forEach(s => s.classList.remove('active'));
+  S[name].classList.add('active');
+}
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4500);
+}
+function esc(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Buttons ────────────────────────────────────────────────────
+document.getElementById('btn-start').addEventListener('click', startRec);
+document.getElementById('btn-stop').addEventListener('click',  stopAndAnalyze);
+document.getElementById('btn-new').addEventListener('click',   () => { resetAll(); show('idle'); });
+
+// ── Recording ─────────────────────────────────────────────────
+async function startRec() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch { toast('Microphone access denied.'); return; }
+
+  audioCtx = new AudioContext();
+  const src = audioCtx.createMediaStreamSource(stream);
+  analyser  = audioCtx.createAnalyser();
+  analyser.fftSize = 512;
+  src.connect(analyser);
+
+  const mime = MediaRecorder.isTypeSupported('audio/mp4')  ? 'audio/mp4'  :
+               MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+  mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+  audioChunks   = [];
+  mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+  mediaRecorder.start(100);
+
+  recSeconds = 0;
+  document.getElementById('rec-timer').textContent = '00:00';
+  timerInterval = setInterval(() => {
+    recSeconds++;
+    const m = String(Math.floor(recSeconds / 60)).padStart(2,'0');
+    const s = String(recSeconds % 60).padStart(2,'0');
+    document.getElementById('rec-timer').textContent = `${m}:${s}`;
+    if (recSeconds >= 120) stopAndAnalyze();
+  }, 1000);
+
+  show('recording');
+  drawWaveform();
+}
+
+function drawWaveform() {
+  const canvas = document.getElementById('waveform');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+  function frame() {
+    animFrame = requestAnimationFrame(frame);
+    analyser.getByteTimeDomainData(buf);
+    ctx.fillStyle = '#111'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = '#282828'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+    ctx.strokeStyle = '#C8000A'; ctx.lineWidth = 2;
+    ctx.shadowColor = '#C8000A'; ctx.shadowBlur = 5;
+    ctx.beginPath();
+    const sw = W / buf.length;
+    for (let i = 0; i < buf.length; i++) {
+      const y = (buf[i] / 128.0) * H / 2;
+      i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * sw, y);
+    }
+    ctx.lineTo(W, H/2); ctx.stroke(); ctx.shadowBlur = 0;
+  }
+  frame();
+}
+
+// ── Submit ─────────────────────────────────────────────────────
+function stopAndAnalyze() {
+  clearInterval(timerInterval);
+  cancelAnimationFrame(animFrame);
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (audioCtx) audioCtx.close();
+  const duration = recSeconds;
+  show('processing');
+  startProcAnim();
+  apiDone = false; apiResult = null;
+
+  mediaRecorder.stop();
+  mediaRecorder.onstop = async () => {
+    const mimeType = audioChunks[0]?.type || 'audio/webm';
+    const ext   = mimeType.includes('mp4') ? '.mp4' : '.webm';
+    const blob  = new Blob(audioChunks, { type: mimeType });
+    const form  = new FormData();
+    form.append('audio',    blob, 'rec' + ext);
+    form.append('duration', String(duration));
+    try {
+      const resp = await fetch('/diagnose', { method:'POST', body: form });
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.detail || 'Error'); }
+      apiResult = await resp.json();
+      apiDone   = true;
+    } catch (e) {
+      clearInterval(procInterval);
+      toast('Error: ' + e.message);
+      show('idle');
+    }
+  };
+}
+
+// ── Processing animation ───────────────────────────────────────
+const STEPS = [
+  { label: 'INITIATING DIAGNOSTIC PROTOCOL',   pct:  8 },
+  { label: 'TRANSCRIBING VOCAL INPUT',          pct: 25 },
+  { label: 'ANALYZING EMOTIONAL SIGNATURE',     pct: 50 },
+  { label: 'CALIBRATING DIAGNOSIS ENGINE',      pct: 70 },
+  { label: 'GENERATING CLINICAL PRESCRIPTION',  pct: 88 },
+  { label: 'TRANSMITTING TO PRINTER',           pct: 96 },
+];
+function startProcAnim() {
+  let step = 0;
+  const statusEl  = document.getElementById('proc-status');
+  const fillEl    = document.getElementById('progress-fill');
+  function advance() {
+    if (step < STEPS.length) {
+      statusEl.textContent = STEPS[step].label + '...';
+      fillEl.style.width   = STEPS[step].pct + '%';
+      step++;
+    }
+    if (apiDone && step >= 5) {
+      clearInterval(procInterval);
+      fillEl.style.width = '100%';
+      statusEl.textContent = 'DIAGNOSIS COMPLETE';
+      setTimeout(() => renderResult(apiResult), 500);
+    }
+  }
+  advance();
+  procInterval = setInterval(advance, 2600);
+}
+
+// ── Render receipt ─────────────────────────────────────────────
+function renderResult(data) {
+  const d       = data.diagnosis;
+  const dateStr = new Date().toLocaleDateString('en-US', { month:'numeric', day:'numeric', year:'numeric' });
+  const num     = String(data.receipt_number).padStart(3,'0');
+  const maxVal  = Math.max(...d.secondary_emotions.map(e => e.value));
+
+  // Secondary rows
+  const rowsHtml = d.secondary_emotions.map(e => `
+    <div class="r-row">
+      <div class="r-name">${esc(e.emotion.toUpperCase())}</div>
+      <div class="r-mini"><span style="width:${Math.round(e.value/maxVal*100)}%"></span></div>
+      <div class="r-value">${e.value}</div>
+    </div>`).join('');
+
+  // Prescriptions (numbered bordered boxes)
+  const rxList = d.prescriptions || d.orders || [];
+  const rxHtml = rxList.map((o, i) =>
+    `<div class="r-action">${String(i+1).padStart(2,'0')} ${esc(o)}</div>`
+  ).join('');
+
+  document.getElementById('receipt-display').innerHTML = `
+    <div class="r-title">INNER RECEIPT</div>
+    <div class="r-meta">Emotional Diagnosis Report / #${num} / ${dateStr}</div>
+
+    <div class="r-divider"></div>
+
+    <div class="r-label">PRIMARY</div>
+    <div class="r-primary">
+      <div class="r-kaomoji">${esc(d.primary_kaomoji || '')}</div>
+      <div class="r-emotion">
+        <div class="r-ename">${esc(d.primary_emotion)}</div>
+        <div class="r-epct">${d.primary_pct}%</div>
+      </div>
+      <div class="r-bar"><span style="width:${d.primary_pct}%"></span></div>
+    </div>
+
+    <div class="r-divider"></div>
+
+    <div class="r-label">SECONDARY SIGNALS</div>
+    <div class="r-rows">${rowsHtml}</div>
+
+    <div class="r-divider"></div>
+
+    <div class="r-label">DIAGNOSIS</div>
+    <div class="r-verdict">${esc(d.diagnosis_verdict)}</div>
+    <div class="r-sub">${esc(d.diagnosis_sub)}</div>
+
+    <div class="r-divider"></div>
+
+    <div class="r-label">PRESCRIPTION</div>
+    <div class="r-actions">${rxHtml}</div>
+
+    <div class="r-status">STATUS: ${esc(d.status)}</div>
+    <div class="r-foot">Trust the process.</div>
+  `;
+
+  // Print status
+  const ps = document.getElementById('print-status');
+  ps.innerHTML = data.printed
+    ? '<span class="ok">▸ SENT TO PRINTER</span>'
+    : '<span class="err">▸ PRINT FAILED — check printer</span>';
+
+  show('complete');
+}
+
+// ── Reset ──────────────────────────────────────────────────────
+function resetAll() {
+  clearInterval(timerInterval); clearInterval(procInterval);
+  cancelAnimationFrame(animFrame);
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('proc-status').textContent   = '';
+  document.getElementById('receipt-display').innerHTML = '';
+  document.getElementById('print-status').innerHTML    = '';
+  recSeconds = 0; apiDone = false; apiResult = null;
+}
+</script>
+</body>
+</html>
